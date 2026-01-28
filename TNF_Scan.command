@@ -1,1 +1,1 @@
-python /Users/rcough/Scripts/TNF_Scan/main.py
+python3 ~/Scripts/TNF_Scan/main.py
