@@ -181,7 +181,7 @@ def process_one(scanner_input: str, rows: list[dict[str, str]], working_dir: Pat
         print(f"--{subfolder.name}")
     
     # Mark as shot in GES after successful folder creation
-    mark_as_shot_GES(scanner_input)
+    mark_as_shot_GES(lot_num)
     return lot_folder
 
 

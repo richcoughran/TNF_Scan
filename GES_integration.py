@@ -8,7 +8,7 @@ import subprocess
 import time
 
 
-def mark_as_shot_GES(barcode: str) -> None:
+def mark_as_shot_GES(lot_num: str) -> None:
     """
     Process a GES barcode scan by automating Google Chrome interactions.
     
@@ -22,12 +22,12 @@ def mark_as_shot_GES(barcode: str) -> None:
         barcode: The GES barcode value to process
     """
     # Escape the barcode for JavaScript (escape quotes and backslashes)
-    escaped_barcode = barcode.replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"')
+    escaped_lot_num = lot_num.replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"')
     
     # First osascript command: Set search field value and click search button
     script1 = f'''
         tell application "Google Chrome" to activate
-        tell application "Google Chrome" to tell active tab in front window to execute javascript "document.getElementsByClassName('srchText')[0].value = '{escaped_barcode}'; document.getElementsByClassName('srchButton')[0].click();"
+        tell application "Google Chrome" to tell active tab in front window to execute javascript "document.getElementsByClassName('srchText')[0].value = '{escaped_lot_num}'; document.getElementsByClassName('srchButton')[0].click();"
     '''
     
     try:
