@@ -61,13 +61,29 @@ end repeat
 -- currentSubfolder = current subfolder index (e.g. 1)
 -- subfolderList    = list of subfolder names
 
--- Update current_subfolder: decrement by 1, or wrap to subfolderCount if at first subfolder
+if (currentSubfolder - 2) > 0 then
+	set currentSubfolder to (currentSubfolder - 2)
+else if (currentSubfolder - 2) = 0 then
+	set currentSubfolder to length of subfolderList
+else if (currentSubfolder - 2) = -1 then
+	set currentSubfolder to (length of subfolderList) - 1
+end if
+
+tell application "Capture One"
+	
+	set doc to current document
+	tell doc
+		set captures to sessionPathPOSIX & sessionName & "/Capture/" & lotFolder & "/" & item currentSubfolder of subfolderList
+	end tell
+end tell
+
+-- Update current_subfolder: increment by 1, or wrap to 1 if at last subfolder
 set subfolderCount to length of subfolderList
 set currentNum to currentSubfolder as number
-if currentNum > 1 then
-	set newCurrentSubfolder to currentNum - 1
+if currentNum < subfolderCount then
+	set newCurrentSubfolder to currentNum + 1
 else
-	set newCurrentSubfolder to subfolderCount
+	set newCurrentSubfolder to 1
 end if
 
 -- Replace only the numeric value between <current_subfolder> and </current_subfolder> (leave tags and whitespace untouched)
@@ -85,10 +101,4 @@ write xmlContent to fileRef
 close access fileRef
 set currentSubfolder to (newCurrentSubfolder as text)
 
-tell application "Capture One"
-	
-	set doc to current document
-	tell doc
-		set captures to sessionPathPOSIX & sessionName & "/Capture/" & lotFolder & "/" & item currentSubfolder of subfolderList
-	end tell
-end tell
+
