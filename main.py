@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from GES_integration import mark_as_shot_GES
+from setNextCaptureFolder import setNextCaptureFolder
 
 GES_BARCODE_KEYS = ("ges barcode", "gesbarcode", "ges_barcode")
 LOT_KEYS = ("lot #", "lot#", "lot number", "lot no", "lot")
@@ -148,12 +149,24 @@ def next_counter(capture_dir: Path) -> int:
     return max_seen + 1
 
 
-def process_one(scanner_input: str, rows: list[dict[str, str]], working_dir: Path) -> Path | None:
-    """Handle a single scan and folder creation. Returns the created lot_folder path."""
+def process_one(
+    scanner_input: str,
+    rows: list[dict[str, str]],
+    working_dir: Path,
+    csv_path: Path,
+) -> tuple[Path | None, Path | None, list[dict[str, str]] | None, list[Path] | None]:
+    """Handle a single scan and folder creation. Returns (lot_folder, new_csv_path, new_rows, subfolders).
+    If no match and CSV is missing, new_csv_path and new_rows are the re-picked CSV; otherwise they are None.
+    subfolders is the list of subfolders created under lot_folder (None when no lot_folder)."""
     lot_num = first_match_lot(rows, scanner_input)
     if not lot_num:
-        print(f"No rows found where GES BARCODE contains: {scanner_input}")
-        return None
+        print(f"No rows found in {csv_path} where GES BARCODE contains: {scanner_input}")
+        if not csv_path.exists():
+            print("CSV file no longer exists. Choosing CSV again.")
+            new_path = pick_csv_file(working_dir)
+            new_rows = load_rows(new_path)
+            return (None, new_path, new_rows, None)
+        return (None, None, None, None)
     # print(f"Matched LOT #: {lot_num}")
 
     capture_dir = working_dir / "Capture"
@@ -166,11 +179,10 @@ def process_one(scanner_input: str, rows: list[dict[str, str]], working_dir: Pat
     print(f"-{lot_folder.name}")
 
     matching_rows = rows_for_lot(rows, lot_num)
+    subfolders_created: list[Path] = []
     if not matching_rows:
         print("No rows found with that LOT # for subfolder creation.")
-        # Mark as shot in GES after successful folder creation
-        mark_as_shot_GES(scanner_input)
-        return lot_folder
+        return (lot_folder, None, None, subfolders_created)
 
     for row in matching_rows:
         image_name = next((row.get(k, "") for k in IMAGE_KEYS if k in row), "")
@@ -178,11 +190,12 @@ def process_one(scanner_input: str, rows: list[dict[str, str]], working_dir: Pat
             continue
         subfolder = lot_folder / safe_name(image_name)
         subfolder.mkdir(exist_ok=True)
+        subfolders_created.append(subfolder)
         print(f"--{subfolder.name}")
-    
+
     # Mark as shot in GES after successful folder creation
     mark_as_shot_GES(lot_num)
-    return lot_folder
+    return (lot_folder, None, None, subfolders_created)
 
 
 def add_subfolder(lot_folder: Path, folder_name: str) -> None:
@@ -235,9 +248,15 @@ def main() -> int:
             continue
 
         # Process normal GES BARCODE scan
-        lot_folder = process_one(scanner_input, rows, working_dir)
-        if lot_folder:
+        lot_folder, new_csv_path, new_rows, subfolders = process_one(
+            scanner_input, rows, working_dir, csv_path
+        )
+        if new_csv_path is not None and new_rows is not None:
+            csv_path = new_csv_path
+            rows = new_rows
+        if lot_folder is not None:
             last_lot_folder = lot_folder
+            setNextCaptureFolder(working_dir, lot_folder, subfolders or [])
     return 0
 
 
