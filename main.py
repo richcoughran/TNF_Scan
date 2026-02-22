@@ -261,4 +261,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if "-server" in sys.argv or "--server" in sys.argv:
+        working_dir = prompt_for_working_directory()
+        os.chdir(working_dir)
+        print(f"\nTNF_Scan working directory:\n  {working_dir}")
+        from scanServer import run_server
+        raise SystemExit(run_server(working_dir=working_dir))
     raise SystemExit(main())
