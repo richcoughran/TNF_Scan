@@ -75,10 +75,22 @@ def _get_capture_folder_by_prefix(working_dir: Path, prefix: str) -> Path | None
 
 
 def _subfolder_display_name(name: str) -> str:
-    """Return the part after the first '__', or the full name if no '__'."""
-    if "__" in name:
-        return name.split("__", 1)[1]
-    return name
+    """
+    Return the segment between the last '-' before '__' and the '__'.
+
+    Examples:
+      NF0A8HRZG5O-HERO__FRONT-FACING      -> HERO
+      NF0A8HRZG5O-BACK__BACK-FACING      -> BACK
+      NF0A8HRZG5O-DETAIL3__FABRIC-DETAIL -> DETAIL3
+    """
+    sep_index = name.rfind("__")
+    if sep_index == -1:
+        return name
+    before_sep = name[:sep_index]
+    dash_index = before_sep.rfind("-")
+    if dash_index == -1:
+        return before_sep
+    return before_sep[dash_index + 1 :]
 
 
 def _build_capture_page(
