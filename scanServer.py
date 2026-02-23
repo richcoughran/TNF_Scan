@@ -235,28 +235,31 @@ class ScanHandler(http.server.BaseHTTPRequestHandler):
         working_dir = getattr(self.server, "working_dir", None)
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path == "/":
-            self.send_response(200)
-            self.send_header("Content-type", "text/html; charset=utf-8")
-            self.end_headers()
-            if working_dir is not None:
-                all_folders = _get_all_capture_folders_sorted(working_dir)
-                query = parse_qs(urlparse(self.path).query)
-                folder_param = (query.get("folder") or [None])[0]
-                current: Path | None
-                if folder_param:
-                    # If a specific prefix was requested but doesn't exist (yet),
-                    # clear the stale URL by redirecting back to the root.
-                    requested_prefix = str(folder_param).strip()[:3]
+            query = parse_qs(urlparse(self.path).query)
+            folder_param = (query.get("folder") or [None])[0]
+            # If a specific folder was requested but doesn't exist (yet), redirect to /
+            # so the next click sees the new folder. Must do this before sending 200.
+            if working_dir is not None and folder_param:
+                requested_prefix = str(folder_param).strip()[:3]
+                if requested_prefix.isdigit() and len(requested_prefix) == 3:
                     current = _get_capture_folder_by_prefix(
                         working_dir, requested_prefix
                     )
                     if current is None:
                         self.send_response(303)
                         self.send_header("Location", "/")
+                        self.send_header("Cache-Control", "no-store")
                         self.end_headers()
                         return
-                else:
-                    current = None
+            # Normal response: build body then send headers once
+            if working_dir is not None:
+                all_folders = _get_all_capture_folders_sorted(working_dir)
+                current = None
+                if folder_param:
+                    requested_prefix = str(folder_param).strip()[:3]
+                    current = _get_capture_folder_by_prefix(
+                        working_dir, requested_prefix
+                    )
                 if current is None:
                     current = _get_latest_capture_folder(working_dir)
                 set_error = (query.get("set_error") or [None])[0]
@@ -265,6 +268,10 @@ class ScanHandler(http.server.BaseHTTPRequestHandler):
                 )
             else:
                 body = PAGE_HTML
+            self.send_response(200)
+            self.send_header("Content-type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
             self.wfile.write(body.encode("utf-8"))
         else:
             self.send_response(404)
