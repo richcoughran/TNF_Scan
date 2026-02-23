@@ -242,8 +242,19 @@ class ScanHandler(http.server.BaseHTTPRequestHandler):
                 all_folders = _get_all_capture_folders_sorted(working_dir)
                 query = parse_qs(urlparse(self.path).query)
                 folder_param = (query.get("folder") or [None])[0]
+                current: Path | None
                 if folder_param:
-                    current = _get_capture_folder_by_prefix(working_dir, str(folder_param).strip()[:3])
+                    # If a specific prefix was requested but doesn't exist (yet),
+                    # clear the stale URL by redirecting back to the root.
+                    requested_prefix = str(folder_param).strip()[:3]
+                    current = _get_capture_folder_by_prefix(
+                        working_dir, requested_prefix
+                    )
+                    if current is None:
+                        self.send_response(303)
+                        self.send_header("Location", "/")
+                        self.end_headers()
+                        return
                 else:
                     current = None
                 if current is None:
